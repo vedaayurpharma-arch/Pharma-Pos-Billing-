@@ -1,0 +1,6 @@
+{
+  "name": "Veda Ayur Pharma ERP",
+  "description": "Marg ERP-grade Ayurvedic & Pharmaceutical ERP with billing, batch/expiry tracking, GST & e-Invoice, accounting, reports, custom invoice designer, and AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

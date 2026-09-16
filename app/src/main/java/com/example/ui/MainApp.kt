@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Receipt
@@ -60,11 +62,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.fieldsales.FieldSalesMainScreen
+import com.example.ui.fieldsales.LoginScreen
 import com.example.ui.screens.AccountsScreen
 import com.example.ui.screens.CompanySettingsScreen
 import com.example.ui.screens.CreateEditInvoiceScreen
@@ -99,7 +104,9 @@ enum class AppScreen {
     REPORTS,
     VEDA_AI,
     PARTIES,
-    COMPANY_SETTINGS
+    COMPANY_SETTINGS,
+    FIELD_SALES,
+    LOGIN_CLOUD
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,6 +114,9 @@ enum class AppScreen {
 fun MainApp(
     viewModel: BillingViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val fieldSalesViewModel: FieldSalesViewModel = viewModel()
+
     var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
     var showMoreHubSheet by remember { mutableStateOf(false) }
 
@@ -237,7 +247,8 @@ fun MainApp(
                             viewModel.selectInvoice(invoiceWithItems)
                             currentScreen = AppScreen.LANDSCAPE_BILL_PREVIEW
                         },
-                        onViewAllInvoicesClick = { currentScreen = AppScreen.INVOICE_LIST }
+                        onViewAllInvoicesClick = { currentScreen = AppScreen.INVOICE_LIST },
+                        onFieldSalesClick = { currentScreen = AppScreen.FIELD_SALES }
                     )
                 }
 
@@ -405,7 +416,26 @@ fun MainApp(
                 AppScreen.COMPANY_SETTINGS -> {
                     CompanySettingsScreen(
                         currentProfile = companyProfile,
-                        onSaveProfile = { viewModel.saveCompanyProfile(it) }
+                        onSaveProfile = { viewModel.saveCompanyProfile(it) },
+                        onOpenLogin = { currentScreen = AppScreen.LOGIN_CLOUD },
+                        onExportCsv = { fieldSalesViewModel.exportReportsAsCsv(context) },
+                        onExportJson = { fieldSalesViewModel.exportReportsAsJson(context) },
+                        onResetData = { fieldSalesViewModel.resetAllData() }
+                    )
+                }
+
+                AppScreen.FIELD_SALES -> {
+                    FieldSalesMainScreen(
+                        viewModel = fieldSalesViewModel,
+                        onExitModule = { currentScreen = AppScreen.DASHBOARD }
+                    )
+                }
+
+                AppScreen.LOGIN_CLOUD -> {
+                    LoginScreen(
+                        viewModel = fieldSalesViewModel,
+                        onBack = { currentScreen = AppScreen.DASHBOARD },
+                        onLoginSuccess = { currentScreen = AppScreen.DASHBOARD }
                     )
                 }
             }
@@ -550,6 +580,30 @@ fun MainApp(
                                 showMoreHubSheet = false
                                 viewModel.initNewDraft()
                                 currentScreen = AppScreen.CREATE_EDIT_INVOICE
+                            }
+                        )
+                    }
+                    item {
+                        HubGridItem(
+                            icon = Icons.Default.Explore,
+                            title = "Field Sales",
+                            iconColor = Color(0xFF1B4332),
+                            bgColor = Color(0xFFD1FAE5),
+                            onClick = {
+                                showMoreHubSheet = false
+                                currentScreen = AppScreen.FIELD_SALES
+                            }
+                        )
+                    }
+                    item {
+                        HubGridItem(
+                            icon = Icons.Default.Login,
+                            title = "Login & Cloud",
+                            iconColor = Color(0xFF1565C0),
+                            bgColor = Color(0xFFEFF6FF),
+                            onClick = {
+                                showMoreHubSheet = false
+                                currentScreen = AppScreen.LOGIN_CLOUD
                             }
                         )
                     }

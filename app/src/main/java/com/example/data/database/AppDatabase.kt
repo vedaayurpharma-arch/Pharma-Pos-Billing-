@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.dao.AccountsDao
 import com.example.data.dao.CompanyDao
+import com.example.data.dao.FieldSalesDao
 import com.example.data.dao.InvoiceDao
 import com.example.data.dao.InvoiceDesignerDao
 import com.example.data.dao.PartyDao
@@ -14,13 +15,22 @@ import com.example.data.dao.ProductDao
 import com.example.data.dao.PurchaseDao
 import com.example.data.model.AccountsTransaction
 import com.example.data.model.CompanyProfile
+import com.example.data.model.CustomerVisit
+import com.example.data.model.FieldCustomer
+import com.example.data.model.FieldDocument
+import com.example.data.model.FieldOrder
+import com.example.data.model.FieldOrderItem
 import com.example.data.model.Invoice
 import com.example.data.model.InvoiceDesignerConfig
 import com.example.data.model.InvoiceItem
 import com.example.data.model.Party
 import com.example.data.model.Product
+import com.example.data.model.ProductAllocation
 import com.example.data.model.PurchaseItem
 import com.example.data.model.PurchaseRecord
+import com.example.data.model.TourExpense
+import com.example.data.model.UserAccount
+import com.example.data.model.UserRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,9 +45,17 @@ import kotlinx.coroutines.launch
         PurchaseRecord::class,
         PurchaseItem::class,
         AccountsTransaction::class,
-        InvoiceDesignerConfig::class
+        InvoiceDesignerConfig::class,
+        FieldCustomer::class,
+        FieldOrder::class,
+        FieldOrderItem::class,
+        CustomerVisit::class,
+        TourExpense::class,
+        ProductAllocation::class,
+        FieldDocument::class,
+        UserAccount::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -48,6 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun purchaseDao(): PurchaseDao
     abstract fun accountsDao(): AccountsDao
     abstract fun invoiceDesignerDao(): InvoiceDesignerDao
+    abstract fun fieldSalesDao(): FieldSalesDao
 
     companion object {
         @Volatile
@@ -530,6 +549,447 @@ abstract class AppDatabase : RoomDatabase() {
                     paymentMode = "UPI",
                     referenceNo = "UPI-ELEC-441",
                     notes = "Commercial electricity power bill"
+                )
+            )
+
+            // Seed Field Sales User Accounts
+            val dao = database.fieldSalesDao()
+            dao.insertUsers(
+                listOf(
+                    UserAccount(
+                        name = "Dr. Veda Murthy",
+                        email = "vedaayurpharma@gmail.com",
+                        phone = "+91 94401 23456",
+                        role = UserRole.ADMIN,
+                        stateAssigned = "All States (Executive)",
+                        isGoogleAccount = true,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced with Cloud"
+                    ),
+                    UserAccount(
+                        name = "Priya Sharma",
+                        email = "priya.manager@vedaayur.in",
+                        phone = "+91 98450 67890",
+                        role = UserRole.MANAGER,
+                        stateAssigned = "South Zone (KA, AP, TS)",
+                        isGoogleAccount = false,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced with Cloud"
+                    ),
+                    UserAccount(
+                        name = "Ramesh Kumar",
+                        email = "ramesh.sales@vedaayur.in",
+                        phone = "+91 91234 56789",
+                        role = UserRole.FIELD_SALES,
+                        stateAssigned = "Karnataka & Maharashtra",
+                        isGoogleAccount = false,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced 10m ago"
+                    ),
+                    UserAccount(
+                        name = "Kiran Reddy",
+                        email = "kiran.sales@vedaayur.in",
+                        phone = "+91 99887 65432",
+                        role = UserRole.FIELD_SALES,
+                        stateAssigned = "Andhra Pradesh & Telangana",
+                        isGoogleAccount = false,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced 25m ago"
+                    )
+                )
+            )
+
+            // Seed Field Customers
+            val p1Id = 1L
+            val p2Id = 2L
+            val p3Id = 3L
+            val p4Id = 4L
+            val p5Id = 5L
+            val p6Id = 6L
+            val p7Id = 7L
+            val p8Id = 8L
+
+            val fc1Id = dao.insertCustomer(
+                FieldCustomer(
+                    customerName = "Dr. S. K. Rao (BAMS)",
+                    clinicOrPharmacyName = "Dhanvantari Ayurvedic Nilayam",
+                    phone = "9845112233",
+                    address = "#44, Temple Road, Malleshwaram 8th Cross",
+                    state = "Karnataka",
+                    city = "Bangalore",
+                    pinCode = "560003",
+                    latitude = 13.0031,
+                    longitude = 77.5643,
+                    salesRep = "Ramesh Kumar",
+                    dateAdded = "12-09-2024",
+                    totalPurchasesValue = 38500.0,
+                    lastVisitDate = "14-09-2024"
+                )
+            )
+
+            val fc2Id = dao.insertCustomer(
+                FieldCustomer(
+                    customerName = "K. Srinivasa Rao",
+                    clinicOrPharmacyName = "Sri Balaji Ayurvedic Stores",
+                    phone = "9440188990",
+                    address = "D.No 12/88, Main Bazaar, Near Raj Vihar",
+                    state = "Andhra Pradesh",
+                    city = "Kurnool",
+                    pinCode = "518001",
+                    latitude = 15.8281,
+                    longitude = 78.0373,
+                    salesRep = "Kiran Reddy",
+                    dateAdded = "10-09-2024",
+                    totalPurchasesValue = 24900.0,
+                    lastVisitDate = "15-09-2024"
+                )
+            )
+
+            val fc3Id = dao.insertCustomer(
+                FieldCustomer(
+                    customerName = "Dr. Ananya Deshmukh",
+                    clinicOrPharmacyName = "AyurVeda Clinic & Panchakarma",
+                    phone = "9823044556",
+                    address = "Plot 89, Shivaji Nagar, FC Road",
+                    state = "Maharashtra",
+                    city = "Pune",
+                    pinCode = "411005",
+                    latitude = 18.5204,
+                    longitude = 73.8567,
+                    salesRep = "Ramesh Kumar",
+                    dateAdded = "08-09-2024",
+                    totalPurchasesValue = 42000.0,
+                    lastVisitDate = "13-09-2024"
+                )
+            )
+
+            val fc4Id = dao.insertCustomer(
+                FieldCustomer(
+                    customerName = "Dr. G. Prabhakar (MD Ayur)",
+                    clinicOrPharmacyName = "Charaka Ayurveda Hospital",
+                    phone = "9490123888",
+                    address = "Door 5-9-22, Tilak Road, Abids",
+                    state = "Telangana",
+                    city = "Hyderabad",
+                    pinCode = "500001",
+                    latitude = 17.3916,
+                    longitude = 78.4747,
+                    salesRep = "Kiran Reddy",
+                    dateAdded = "09-09-2024",
+                    totalPurchasesValue = 56000.0,
+                    lastVisitDate = "15-09-2024"
+                )
+            )
+
+            val fc5Id = dao.insertCustomer(
+                FieldCustomer(
+                    customerName = "Venkata Ramanan",
+                    clinicOrPharmacyName = "Sanjeevani Herbal Aushadhalaya",
+                    phone = "9840299112",
+                    address = "14/2, Anna Salai, T. Nagar",
+                    state = "Tamil Nadu",
+                    city = "Chennai",
+                    pinCode = "600017",
+                    latitude = 13.0418,
+                    longitude = 80.2341,
+                    salesRep = "Kiran Reddy",
+                    dateAdded = "11-09-2024",
+                    totalPurchasesValue = 31200.0,
+                    lastVisitDate = "14-09-2024"
+                )
+            )
+
+            // Seed Field Orders
+            val order1Id = dao.insertOrder(
+                FieldOrder(
+                    orderNumber = "FLD-VAP-2024-001",
+                    customerId = fc1Id,
+                    customerName = "Dr. S. K. Rao (BAMS)",
+                    clinicOrPharmacyName = "Dhanvantari Ayurvedic Nilayam",
+                    phone = "9845112233",
+                    state = "Karnataka",
+                    city = "Bangalore",
+                    orderDate = "14-09-2024",
+                    salesRep = "Ramesh Kumar",
+                    totalMrp = 24600.0,
+                    netWholesaleRate = 18200.0,
+                    discountPercent = 5.0,
+                    discountAmount = 910.0,
+                    gstPercent = 5.0,
+                    gstAmount = 864.5,
+                    finalPurchaseValue = 18154.5,
+                    digitalInvoiceUrl = "https://vedaayurpharma.com/inv/FLD-001",
+                    physicalReceiptUri = "receipt_fld_001.jpg",
+                    orderNotes = "Requires urgent dispatch for autumn arthritis camp. Prefer batch ASH2401.",
+                    paymentStatus = "PAID"
+                )
+            )
+
+            dao.insertOrderItems(
+                listOf(
+                    FieldOrderItem(
+                        orderId = order1Id,
+                        productId = p1Id,
+                        productName = "VEDA ASHWAGANDHA CHURNA",
+                        pack = "100g Jar",
+                        batchNumber = "ASH2401",
+                        quantity = 60,
+                        mrp = 180.0,
+                        wholesaleRate = 110.0,
+                        subtotal = 6600.0
+                    ),
+                    FieldOrderItem(
+                        orderId = order1Id,
+                        productId = p2Id,
+                        productName = "VEDA CHYAWANPRASH SPECIAL",
+                        pack = "500g Pet Jar",
+                        batchNumber = "CHY2403",
+                        quantity = 30,
+                        mrp = 395.0,
+                        wholesaleRate = 240.0,
+                        subtotal = 7200.0
+                    ),
+                    FieldOrderItem(
+                        orderId = order1Id,
+                        productId = p3Id,
+                        productName = "VEDA TRIPHALA GUGGULU",
+                        pack = "80 Tabs",
+                        batchNumber = "TRP2402",
+                        quantity = 40,
+                        mrp = 160.0,
+                        wholesaleRate = 110.0,
+                        subtotal = 4400.0
+                    )
+                )
+            )
+
+            val order2Id = dao.insertOrder(
+                FieldOrder(
+                    orderNumber = "FLD-VAP-2024-002",
+                    customerId = fc4Id,
+                    customerName = "Dr. G. Prabhakar (MD Ayur)",
+                    clinicOrPharmacyName = "Charaka Ayurveda Hospital",
+                    phone = "9490123888",
+                    state = "Telangana",
+                    city = "Hyderabad",
+                    orderDate = "15-09-2024",
+                    salesRep = "Kiran Reddy",
+                    totalMrp = 38500.0,
+                    netWholesaleRate = 26500.0,
+                    discountPercent = 8.0,
+                    discountAmount = 2120.0,
+                    gstPercent = 5.0,
+                    gstAmount = 1219.0,
+                    finalPurchaseValue = 25599.0,
+                    digitalInvoiceUrl = "https://vedaayurpharma.com/inv/FLD-002",
+                    physicalReceiptUri = "receipt_fld_002.jpg",
+                    orderNotes = "Hospital inpatient supply, monthly standing order.",
+                    paymentStatus = "PAID"
+                )
+            )
+
+            dao.insertOrderItems(
+                listOf(
+                    FieldOrderItem(
+                        orderId = order2Id,
+                        productId = p2Id,
+                        productName = "VEDA CHYAWANPRASH SPECIAL",
+                        pack = "500g Pet Jar",
+                        batchNumber = "CHY2403",
+                        quantity = 60,
+                        mrp = 395.0,
+                        wholesaleRate = 240.0,
+                        subtotal = 14400.0
+                    ),
+                    FieldOrderItem(
+                        orderId = order2Id,
+                        productId = p4Id,
+                        productName = "VEDA BRAHMI TAILA",
+                        pack = "200ml Bottle",
+                        batchNumber = "BRH2401",
+                        quantity = 50,
+                        mrp = 220.0,
+                        wholesaleRate = 140.0,
+                        subtotal = 7000.0
+                    ),
+                    FieldOrderItem(
+                        orderId = order2Id,
+                        productId = p5Id,
+                        productName = "VEDA KASAMRIT HERBAL SYRUP",
+                        pack = "100ml",
+                        batchNumber = "KAS2404",
+                        quantity = 65,
+                        mrp = 115.0,
+                        wholesaleRate = 78.0,
+                        subtotal = 5070.0
+                    )
+                )
+            )
+
+            // Seed GPS Customer Visits
+            dao.insertVisit(
+                CustomerVisit(
+                    customerId = fc1Id,
+                    customerName = "Dr. S. K. Rao (BAMS)",
+                    clinicOrPharmacyName = "Dhanvantari Ayurvedic Nilayam",
+                    salesRep = "Ramesh Kumar",
+                    visitDateTime = "14-09-2024 11:30 AM",
+                    latitude = 13.0031,
+                    longitude = 77.5643,
+                    address = "Malleshwaram 8th Cross, Bangalore",
+                    visitNotes = "Doctor appreciated batch quality of Chyawanprash. Placed order FLD-001 with 5% seasonal discount.",
+                    outcome = "ORDER_TAKEN"
+                )
+            )
+
+            dao.insertVisit(
+                CustomerVisit(
+                    customerId = fc4Id,
+                    customerName = "Dr. G. Prabhakar (MD Ayur)",
+                    clinicOrPharmacyName = "Charaka Ayurveda Hospital",
+                    salesRep = "Kiran Reddy",
+                    visitDateTime = "15-09-2024 02:15 PM",
+                    latitude = 17.3916,
+                    longitude = 78.4747,
+                    address = "Tilak Road, Abids, Hyderabad",
+                    visitNotes = "Met Hospital superintendent. Collected Cheque for previous bill and booked fresh order FLD-002.",
+                    outcome = "PAYMENT_COLLECTED"
+                )
+            )
+
+            dao.insertVisit(
+                CustomerVisit(
+                    customerId = fc2Id,
+                    customerName = "K. Srinivasa Rao",
+                    clinicOrPharmacyName = "Sri Balaji Ayurvedic Stores",
+                    salesRep = "Kiran Reddy",
+                    visitDateTime = "15-09-2024 05:45 PM",
+                    latitude = 15.8281,
+                    longitude = 78.0373,
+                    address = "Main Bazaar, Kurnool",
+                    visitNotes = "Demonstrated new Kasamrit Herbal Syrup samples. Chemist agreed to stock 50 bottles next week.",
+                    outcome = "SAMPLE_GIVEN"
+                )
+            )
+
+            // Seed Tour Expenses
+            dao.insertExpense(
+                TourExpense(
+                    expenseDate = "14-09-2024",
+                    salesRep = "Ramesh Kumar",
+                    travelAmount = 1450.0,
+                    foodAmount = 450.0,
+                    accommodationAmount = 1800.0,
+                    otherAmount = 200.0,
+                    totalAmount = 3900.0,
+                    notes = "Bangalore Malleshwaram & Rajajinagar clinic tour (Cab + Food + Hotel)",
+                    receiptUri = "exp_blr_1409.jpg",
+                    status = "APPROVED"
+                )
+            )
+
+            dao.insertExpense(
+                TourExpense(
+                    expenseDate = "15-09-2024",
+                    salesRep = "Kiran Reddy",
+                    travelAmount = 1200.0,
+                    foodAmount = 380.0,
+                    accommodationAmount = 0.0,
+                    otherAmount = 150.0,
+                    totalAmount = 1730.0,
+                    notes = "Hyderabad to Kurnool highway toll and intercity field transit",
+                    receiptUri = "exp_knl_1509.jpg",
+                    status = "PENDING"
+                )
+            )
+
+            dao.insertExpense(
+                TourExpense(
+                    expenseDate = "13-09-2024",
+                    salesRep = "Ramesh Kumar",
+                    travelAmount = 2800.0,
+                    foodAmount = 650.0,
+                    accommodationAmount = 2200.0,
+                    otherAmount = 350.0,
+                    totalAmount = 6000.0,
+                    notes = "Pune Shivaji Nagar and FC Road clinic tie-up tour",
+                    receiptUri = "exp_pune_1309.jpg",
+                    status = "APPROVED"
+                )
+            )
+
+            // Seed State Product Allocations
+            val allStates = listOf("Karnataka", "Andhra Pradesh", "Telangana", "Maharashtra", "Tamil Nadu")
+            val seededProducts: List<Pair<Long, String>> = listOf(
+                Pair(p1Id, "VEDA ASHWAGANDHA CHURNA"),
+                Pair(p2Id, "VEDA CHYAWANPRASH SPECIAL"),
+                Pair(p3Id, "VEDA TRIPHALA GUGGULU"),
+                Pair(p4Id, "VEDA BRAHMI TAILA"),
+                Pair(p5Id, "VEDA KASAMRIT HERBAL SYRUP"),
+                Pair(p6Id, "VEDA LIV-99 HEPATO TONIC"),
+                Pair(p7Id, "VEDA MAHANARAYAN OIL"),
+                Pair(p8Id, "VEDA SHILAJIT RESIN PURE")
+            )
+
+            val allocationList = mutableListOf<ProductAllocation>()
+            for (state in allStates) {
+                for ((pId, pName) in seededProducts) {
+                    val isAvail = true
+                    val stateDiscount = when (state) {
+                        "Karnataka" -> 5.0
+                        "Andhra Pradesh" -> 6.0
+                        "Telangana" -> 5.0
+                        "Maharashtra" -> 7.5
+                        else -> 4.0
+                    }
+                    allocationList.add(
+                        ProductAllocation(
+                            state = state,
+                            productId = pId,
+                            productName = pName,
+                            isAvailable = isAvail,
+                            specialStateDiscount = stateDiscount,
+                            allocatedQuota = 1000
+                        )
+                    )
+                }
+            }
+            dao.insertAllocations(allocationList)
+
+            // Seed Field Documents
+            dao.insertDocument(
+                FieldDocument(
+                    title = "Bill Receipt - Dhanvantari Nilayam #001",
+                    customerName = "Dr. S. K. Rao (BAMS)",
+                    documentType = "PHYSICAL_BILL",
+                    dateUploaded = "14-09-2024",
+                    fileUrlOrUri = "docs/receipt_fld_001.pdf",
+                    notes = "Signed and stamped physical copy of purchase order.",
+                    orderId = order1Id
+                )
+            )
+
+            dao.insertDocument(
+                FieldDocument(
+                    title = "Ayush Drug License 20B/21B - Sri Balaji",
+                    customerName = "K. Srinivasa Rao",
+                    documentType = "DRUG_LICENSE",
+                    dateUploaded = "10-09-2024",
+                    fileUrlOrUri = "docs/dl_balaji_knl.pdf",
+                    notes = "Valid until 31-12-2028 under AP Ayush Authority.",
+                    orderId = null
+                )
+            )
+
+            dao.insertDocument(
+                FieldDocument(
+                    title = "GST Registration Certificate - Charaka Hospital",
+                    customerName = "Dr. G. Prabhakar (MD Ayur)",
+                    documentType = "GST_CERT",
+                    dateUploaded = "09-09-2024",
+                    fileUrlOrUri = "docs/gst_charaka_hyd.pdf",
+                    notes = "GSTIN: 36AAACG1234H1Z5 verified.",
+                    orderId = null
                 )
             )
         }

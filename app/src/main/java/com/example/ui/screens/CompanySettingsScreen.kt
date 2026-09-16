@@ -21,12 +21,17 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -66,10 +72,15 @@ import com.example.ui.theme.VedaGreenDark
 @Composable
 fun CompanySettingsScreen(
     currentProfile: CompanyProfile,
-    onSaveProfile: (CompanyProfile) -> Unit
+    onSaveProfile: (CompanyProfile) -> Unit,
+    onOpenLogin: () -> Unit = {},
+    onExportCsv: () -> Unit = {},
+    onExportJson: () -> Unit = {},
+    onResetData: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(0) } // 0: Company Info, 1: Invoice Series, 2: Printer Setup, 3: Roles & Backup
+    var showResetDialog by remember { mutableStateOf(false) }
 
     var companyName by remember(currentProfile) { mutableStateOf(currentProfile.companyName) }
     var tagline by remember(currentProfile) { mutableStateOf(currentProfile.tagline) }
@@ -428,45 +439,99 @@ fun CompanySettingsScreen(
                     }
 
                     3 -> {
-                        // Operator Roles & Backup
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, PharmaBorder)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Backup, contentDescription = null, tint = VedaGreen)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Data Backup, Restore & Sync", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VedaGreen)
-                                }
+                        // Cloud, Data Export & Reset
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // 1. Google / Gmail Cloud Access
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, PharmaBorder)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CloudSync, contentDescription = null, tint = Color(0xFF1565C0))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Google / Gmail & Cloud Access", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1565C0))
+                                    }
 
-                                Text("Offline-first Room database secured with daily automated snapshot snapshots.", fontSize = 11.sp, color = PharmaTextSecondary)
+                                    Text("Primary Account: vedaayurpharma@gmail.com", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PharmaTextPrimary)
+                                    Text("Connected to Veda Ayur Cloud Vault & Google Drive automatic backups.", fontSize = 11.sp, color = PharmaTextSecondary)
 
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Button(
-                                        onClick = { Toast.makeText(context, "Database backup JSON generated in Downloads", Toast.LENGTH_SHORT).show() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = VedaGreen),
-                                        modifier = Modifier.weight(1f)
+                                        onClick = onOpenLogin,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                                        modifier = Modifier.fillMaxWidth().testTag("btn_settings_open_login")
                                     ) {
-                                        Text("Export Backup")
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = { Toast.makeText(context, "Restore completed successfully!", Toast.LENGTH_SHORT).show() },
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Restore JSON")
+                                        Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Open Login & Cloud Access Page")
                                     }
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                            // 2. Data Export (Excel & JSON)
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, PharmaBorder)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.FileDownload, contentDescription = null, tint = VedaGreen)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Export ERP & Sales Data", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VedaGreen)
+                                    }
 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CloudSync, contentDescription = null, tint = Color(0xFF1565C0))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Cloud Sync Status: Active (AES-256 Encrypted)", fontSize = 11.sp, color = Color(0xFF1565C0), fontWeight = FontWeight.SemiBold)
+                                    Text("Export invoices, customer records, inventory stock, and accounts.", fontSize = 11.sp, color = PharmaTextSecondary)
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Button(
+                                            onClick = { onExportCsv() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = VedaGreen),
+                                            modifier = Modifier.weight(1f).testTag("btn_settings_export_excel")
+                                        ) {
+                                            Text("Export Excel (CSV)")
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { onExportJson() },
+                                            modifier = Modifier.weight(1f).testTag("btn_settings_export_json")
+                                        ) {
+                                            Text("Export JSON")
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. Reset All Database
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color(0xFFDC2626))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Reset All Data / Factory Reset", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFDC2626))
+                                    }
+
+                                    Text(
+                                        "Permanently resets all test transactions, parties, orders, and expenses back to fresh factory state.",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF7F1D1D)
+                                    )
+
+                                    Button(
+                                        onClick = { showResetDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                                        modifier = Modifier.fillMaxWidth().testTag("btn_settings_reset_database")
+                                    ) {
+                                        Text("Reset All Database Data")
+                                    }
                                 }
                             }
                         }
@@ -474,5 +539,32 @@ fun CompanySettingsScreen(
                 }
             }
         }
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Confirm Database Reset", fontWeight = FontWeight.Bold, color = Color(0xFFDC2626)) },
+            text = {
+                Text("Are you sure you want to reset all data? This will clear all transactions and re-initialize the database to initial clean seed state.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetDialog = false
+                        onResetData()
+                        Toast.makeText(context, "Database reset to initial factory state successfully!", Toast.LENGTH_LONG).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Text("Yes, Reset Everything")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

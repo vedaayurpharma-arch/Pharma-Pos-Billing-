@@ -25,12 +25,14 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -90,7 +92,8 @@ fun DashboardScreen(
     onStockClick: () -> Unit,
     onVedaAiClick: () -> Unit,
     onInvoiceClick: (InvoiceWithItems) -> Unit,
-    onViewAllInvoicesClick: () -> Unit
+    onViewAllInvoicesClick: () -> Unit,
+    onFieldSalesClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -208,6 +211,74 @@ fun DashboardScreen(
                 }
             }
 
+            // Dedicated Field Sales Module Entry Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onFieldSalesClick() }
+                        .testTag("card_field_sales_module"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2D6A4F))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE8F5E9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("📍", fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Field Sales & Customer Mgmt",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color(0xFF65A30D))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("NEW", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Dedicated 2-Column Dashboard • GPS Map • Product Quotas",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFA7F3D0)
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onFieldSalesClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF65A30D)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("Open", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // Quick Actions Bar
             item {
                 Text(
@@ -222,6 +293,16 @@ fun DashboardScreen(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    item {
+                        QuickActionButton(
+                            icon = Icons.Default.Explore,
+                            label = "Field Sales",
+                            containerColor = Color(0xFF1B4332),
+                            contentColor = Color.White,
+                            onClick = onFieldSalesClick,
+                            tag = "quick_field_sales"
+                        )
+                    }
                     item {
                         QuickActionButton(
                             icon = Icons.Default.Receipt,

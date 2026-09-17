@@ -580,87 +580,326 @@ object InvoiceHtmlGenerator {
         val invoice = invoiceWithItems.invoice
         val items = invoiceWithItems.items
 
+        // Generate vector scannable Code 128 barcode and QR Code
+        val barcodeSvg = BarcodeUtil.generateCode128Svg(invoice.invoiceNumber, heightPx = 36, barWidthPx = 1.3, includeText = true)
+        val qrPayload = "upi://pay?pa=${company.upiId}&pn=${company.companyName}&am=${String.format(Locale.US, "%.2f", invoice.grandTotal)}&cu=INR"
+        val qrSvg = BarcodeUtil.generateQrSvg(qrPayload, sizePx = 80, fgHex = config.primaryColorHex)
+
         val itemsHtml = buildString {
             items.forEachIndexed { index, item ->
                 append("""
                 <tr>
-                    <td style="text-align:center;">${index + 1}</td>
-                    <td style="font-weight:bold;">${item.productName}</td>
-                    <td style="text-align:center;">${item.pack}</td>
-                    <td style="text-align:center;">${item.batch}</td>
-                    <td style="text-align:center;">${item.exp}</td>
-                    <td style="text-align:center;">${item.qty}</td>
-                    <td style="text-align:right;">${String.format(Locale.US, "%.2f", item.mrp)}</td>
-                    <td style="text-align:right;">${String.format(Locale.US, "%.2f", item.rate)}</td>
-                    <td style="text-align:center;">${item.discountPercent}%</td>
-                    <td style="text-align:right; font-weight:bold;">${String.format(Locale.US, "%.2f", item.amount)}</td>
+                    <td style="text-align:center; padding:3px 2px;">${index + 1}</td>
+                    <td style="font-weight:bold; padding:3px 4px;">${item.productName}</td>
+                    <td style="text-align:center; padding:3px 2px;">${item.pack}</td>
+                    <td style="text-align:center; padding:3px 2px;">${item.batch}</td>
+                    <td style="text-align:center; padding:3px 2px;">${item.exp}</td>
+                    <td style="text-align:center; padding:3px 2px;">${item.hsn}</td>
+                    <td style="text-align:center; font-weight:bold; padding:3px 2px;">${item.qty}${if (item.freeQty > 0) "+${item.freeQty}" else ""}</td>
+                    <td style="text-align:right; padding:3px 4px;">${String.format(Locale.US, "%.2f", item.mrp)}</td>
+                    <td style="text-align:right; padding:3px 4px;">${String.format(Locale.US, "%.2f", item.rate)}</td>
+                    <td style="text-align:center; padding:3px 2px;">${String.format(Locale.US, "%.1f", item.discountPercent)}%</td>
+                    <td style="text-align:center; padding:3px 2px;">${(item.cgstPercent + item.sgstPercent).toInt()}%</td>
+                    <td style="text-align:right; font-weight:bold; padding:3px 4px;">${String.format(Locale.US, "%.2f", item.amount)}</td>
                 </tr>
                 """.trimIndent())
             }
         }
 
+        val gstRows = buildString {
+            for (rate in listOf(5, 12, 18, 28)) {
+                val slab = slabMap[rate] ?: GstSlabSummary("GST ${rate}%")
+                if (slab.taxable > 0.0 || rate == 12 || rate == 18) {
+                    append("""
+                    <tr>
+                        <td style="padding:2px 3px;">GST ${rate}%</td>
+                        <td style="text-align:right; padding:2px 3px;">₹${String.format(Locale.US, "%.2f", slab.taxable)}</td>
+                        <td style="text-align:right; padding:2px 3px;">₹${String.format(Locale.US, "%.2f", slab.sgst)}</td>
+                        <td style="text-align:right; padding:2px 3px;">₹${String.format(Locale.US, "%.2f", slab.cgst)}</td>
+                        <td style="text-align:right; font-weight:bold; padding:2px 3px;">₹${String.format(Locale.US, "%.2f", slab.totalGst)}</td>
+                    </tr>
+                    """.trimIndent())
+                }
+            }
+        }
+
         return """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice ${invoice.invoiceNumber}</title>
+    <title>Tax Invoice - ${invoice.invoiceNumber}</title>
     <style>
-        @page { size: A4 portrait; margin: 10mm; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; }
-        .header { border-bottom: 2px solid ${config.primaryColorHex}; padding-bottom: 8px; margin-bottom: 12px; }
-        .title { font-size: 20px; font-weight: bold; color: ${config.primaryColorHex}; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th { background: #f0f0f0; border: 1px solid #ccc; padding: 6px; font-size: 10px; }
-        td { border: 1px solid #ddd; padding: 5px; font-size: 10px; }
+        @page {
+            size: A4 portrait;
+            margin: 6mm 8mm;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: 9.5px;
+            color: #111;
+            background: #fff;
+            line-height: 1.25;
+        }
+        .page-box {
+            border: 1.5px solid #222;
+            padding: 6px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid ${config.primaryColorHex};
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        .company-title {
+            font-size: 18px;
+            font-weight: 900;
+            color: ${config.primaryColorHex};
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+        }
+        .company-subtitle {
+            font-size: 8.5px;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 2px;
+        }
+        .company-info {
+            font-size: 8.5px;
+            color: #333;
+            line-height: 1.3;
+        }
+        .invoice-tag-box {
+            text-align: right;
+        }
+        .tax-invoice-badge {
+            background: ${config.primaryColorHex};
+            color: #fff;
+            font-size: 13px;
+            font-weight: 900;
+            padding: 3px 10px;
+            border-radius: 2px;
+            display: inline-block;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            border: 1px solid #333;
+            margin-bottom: 5px;
+            background: #fafafa;
+        }
+        .details-col {
+            padding: 4px 6px;
+        }
+        .details-col:first-child {
+            border-right: 1px solid #333;
+        }
+        .section-hdr {
+            font-size: 8.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: ${config.primaryColorHex};
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 2px;
+            margin-bottom: 3px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+        .items-table th {
+            background: ${config.primaryColorHex};
+            color: #fff;
+            font-size: 8.5px;
+            font-weight: 700;
+            padding: 4px 3px;
+            border: 1px solid #222;
+            text-align: center;
+        }
+        .items-table td {
+            border: 1px solid #ccc;
+            font-size: 8.5px;
+        }
+        .items-table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .summary-container {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .gst-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8px;
+        }
+        .gst-table th {
+            background: #eee;
+            border: 1px solid #bbb;
+            padding: 2px 3px;
+            font-weight: bold;
+        }
+        .gst-table td {
+            border: 1px solid #ccc;
+        }
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
+        }
+        .totals-table td {
+            padding: 2px 4px;
+        }
+        .totals-table .grand-row {
+            background: #e8f5e9;
+            font-size: 13px;
+            font-weight: 900;
+            color: ${config.primaryColorHex};
+            border-top: 2px solid ${config.primaryColorHex};
+            border-bottom: 2px solid ${config.primaryColorHex};
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            border-top: 1px solid #333;
+            padding-top: 4px;
+            font-size: 8px;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="display:flex; justify-content:space-between;">
-            <div>
-                <div class="title">${company.companyName}</div>
-                <div>${company.addressLine1}, ${company.addressLine2}</div>
-                <div>Phone: ${company.phone} | GSTIN: ${company.gstin} | DL: ${company.dlNo}</div>
+    <div class="page-box">
+        <div>
+            <!-- Top Header -->
+            <div class="header-top">
+                <div>
+                    <div class="company-title">${company.companyName}</div>
+                    <div class="company-subtitle">${company.tagline}</div>
+                    <div class="company-info">
+                        ${company.addressLine1}, ${company.addressLine2}<br/>
+                        <b>Ph:</b> ${company.phone} | <b>Email:</b> ${company.email}<br/>
+                        <b>GSTIN:</b> ${company.gstin} | <b>D.L. No:</b> ${company.dlNo} | <b>PAN:</b> ${company.pan}
+                    </div>
+                </div>
+                <div class="invoice-tag-box">
+                    <div class="tax-invoice-badge">TAX INVOICE</div>
+                    <div style="font-size:9.5px; font-weight:bold; margin-bottom:2px;"><b>Invoice No:</b> ${invoice.invoiceNumber}</div>
+                    <div style="font-size:8.5px;"><b>Date:</b> ${invoice.invoiceDate}</div>
+                    <div style="font-size:8.5px;"><b>Payment Mode:</b> ${invoice.paymentMode}</div>
+                    <div style="margin-top:3px;">$barcodeSvg</div>
+                </div>
             </div>
-            <div style="text-align:right;">
-                <h2 style="color:${config.primaryColorHex};">TAX INVOICE</h2>
-                <div><b>Inv No:</b> ${invoice.invoiceNumber}</div>
-                <div><b>Date:</b> ${invoice.invoiceDate}</div>
+
+            <!-- Billed-To & Invoice Reference Details -->
+            <div class="details-grid">
+                <div class="details-col">
+                    <div class="section-hdr">Billed To (Customer / Consignee)</div>
+                    <div style="font-size:11px; font-weight:bold; color:#000;">${invoice.partyName}</div>
+                    <div style="font-size:8.5px; line-height:1.3; color:#333;">${invoice.partyAddress}</div>
+                    <div style="font-size:8.5px; margin-top:2px;"><b>Phone:</b> ${invoice.partyPhone}</div>
+                    <div style="font-size:8.5px;"><b>GSTIN:</b> ${invoice.partyGstin.ifBlank { "Unregistered" }} | <b>D.L. No:</b> ${invoice.partyDlNo.ifBlank { "N/A" }}</div>
+                </div>
+                <div class="details-col">
+                    <div class="section-hdr">Transport & Delivery Meta</div>
+                    <div><b>Order No:</b> ${invoice.orderNo.ifBlank { "Direct" }} | <b>Order Date:</b> ${invoice.orderDate.ifBlank { invoice.invoiceDate }}</div>
+                    <div><b>Vehicle / Transporter:</b> ${invoice.vehicleNo.ifBlank { "Surface Transport" }}</div>
+                    <div><b>E-Way Bill No:</b> ${invoice.eWayBillNo.ifBlank { "N/A" }}</div>
+                    <div><b>Due Date:</b> ${invoice.dueDate} | <b>State:</b> Andhra Pradesh (37)</div>
+                </div>
             </div>
+
+            <!-- Items Table -->
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width:24px;">#</th>
+                        <th>Item Description</th>
+                        <th style="width:48px;">Pack</th>
+                        <th style="width:52px;">Batch</th>
+                        <th style="width:42px;">Exp</th>
+                        <th style="width:48px;">HSN</th>
+                        <th style="width:40px;">Qty</th>
+                        <th style="width:48px;">MRP</th>
+                        <th style="width:48px;">Rate</th>
+                        <th style="width:36px;">Dis%</th>
+                        <th style="width:36px;">GST%</th>
+                        <th style="width:62px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    $itemsHtml
+                </tbody>
+            </table>
         </div>
-    </div>
-    <div style="margin-bottom:10px; padding:6px; background:#fafafa; border:1px solid #eee;">
-        <b>Billed To:</b> ${invoice.partyName}<br/>
-        Address: ${invoice.partyAddress}<br/>
-        Phone: ${invoice.partyPhone} | GSTIN: ${invoice.partyGstin} | DL: ${invoice.partyDlNo}
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th><th>Item Name</th><th>Pack</th><th>Batch</th><th>Exp</th><th>Qty</th><th>MRP</th><th>Rate</th><th>Dis%</th><th>Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            $itemsHtml
-        </tbody>
-    </table>
-    <div style="display:flex; justify-content:space-between; margin-top:15px;">
-        <div style="width:60%;">
-            <b>Amount in Words:</b> ${invoice.amountInWords}<br/><br/>
-            <b>Bank Details:</b> ${company.bankName} | A/C: ${company.accountNo} | IFSC: ${company.ifscCode}<br/>
-            <div style="margin-top:10px;">
-                <img src="$upiQrCodeUrl" width="65" height="65" alt="UPI QR" />
-                <span style="font-size:9px; vertical-align:top; margin-left:8px;">Scan to Pay UPI (₹${String.format(Locale.US, "%.2f", invoice.grandTotal)})</span>
+
+        <div>
+            <!-- Summary, GST Breakup & Payment QR -->
+            <div class="summary-container">
+                <div>
+                    <div class="section-hdr">GST Breakdown Summary</div>
+                    <table class="gst-table">
+                        <thead>
+                            <tr><th>Tax Rate</th><th>Taxable</th><th>SGST</th><th>CGST</th><th>Total GST</th></tr>
+                        </thead>
+                        <tbody>
+                            $gstRows
+                        </tbody>
+                    </table>
+                    <div style="margin-top:6px; font-size:8px; line-height:1.2;">
+                        <b>Amount in Words:</b> ${invoice.amountInWords}<br/>
+                        <b>Bank:</b> ${company.bankName} | <b>A/C:</b> ${company.accountNo} | <b>IFSC:</b> ${company.ifscCode}
+                    </div>
+                </div>
+
+                <div>
+                    <table class="totals-table">
+                        <tr><td>Taxable Amount:</td><td style="text-align:right; font-weight:bold;">₹${String.format(Locale.US, "%.2f", totalTaxableAll)}</td></tr>
+                        <tr><td>Trade Discount:</td><td style="text-align:right; color:#c62828;">-₹${String.format(Locale.US, "%.2f", totalDiscountAll)}</td></tr>
+                        <tr><td>Output SGST:</td><td style="text-align:right;">₹${String.format(Locale.US, "%.2f", totalSgstAll)}</td></tr>
+                        <tr><td>Output CGST:</td><td style="text-align:right;">₹${String.format(Locale.US, "%.2f", totalCgstAll)}</td></tr>
+                        <tr class="grand-row"><td>GRAND TOTAL:</td><td style="text-align:right;">₹${String.format(Locale.US, "%.2f", invoice.grandTotal)}</td></tr>
+                    </table>
+                </div>
             </div>
-        </div>
-        <div style="width:35%; text-align:right;">
-            <div>Taxable: ₹${String.format(Locale.US, "%.2f", totalTaxableAll)}</div>
-            <div>Discount: ₹${String.format(Locale.US, "%.2f", totalDiscountAll)}</div>
-            <div>GST (CGST+SGST): ₹${String.format(Locale.US, "%.2f", totalGstAll)}</div>
-            <hr/>
-            <div style="font-size:14px; font-weight:bold; color:${config.primaryColorHex};">Grand Total: ₹${String.format(Locale.US, "%.2f", invoice.grandTotal)}</div>
-            <div style="margin-top:40px;">For ${company.companyName}<br/><br/>Authorized Signatory</div>
+
+            <!-- Footer: Instant UPI QR, Terms & Signature -->
+            <div class="footer-grid">
+                <div style="display:flex; align-items:center;">
+                    $qrSvg
+                    <div style="margin-left:6px;">
+                        <b>Scan to Pay UPI</b><br/>
+                        ${company.upiId}<br/>
+                        ₹${String.format(Locale.US, "%.2f", invoice.grandTotal)}
+                    </div>
+                </div>
+                <div style="text-align:center; color:#555;">
+                    <b>Terms & Conditions</b><br/>
+                    1. Goods once sold will not be taken back.<br/>
+                    2. Subject to Kurnool jurisdiction only.
+                </div>
+                <div style="text-align:right;">
+                    <b>For ${company.companyName}</b><br/><br/><br/>
+                    Authorized Signatory
+                </div>
+            </div>
         </div>
     </div>
 </body>

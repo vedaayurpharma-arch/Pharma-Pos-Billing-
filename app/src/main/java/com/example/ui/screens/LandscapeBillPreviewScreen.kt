@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.StayCurrentPortrait
+import androidx.compose.material.icons.filled.StayCurrentLandscape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -72,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.data.model.CompanyProfile
+import com.example.data.model.InvoiceDesignerConfig
 import com.example.data.model.InvoiceWithItems
 import com.example.ui.theme.PharmaBorder
 import com.example.ui.theme.PharmaTextPrimary
@@ -115,8 +119,21 @@ fun LandscapeBillPreviewScreen(
         return
     }
 
-    val htmlContent = remember(invoiceWithItems, companyProfile) {
-        InvoiceHtmlGenerator.generateHtml(invoiceWithItems, companyProfile)
+    var isPortraitMode by remember { mutableStateOf(false) }
+
+    val htmlContent = remember(invoiceWithItems, companyProfile, isPortraitMode) {
+        val config = if (isPortraitMode) {
+            InvoiceDesignerConfig(
+                paperOrientation = "PORTRAIT",
+                selectedTemplate = "VERTICAL A4 INVOICE — SINGLE PAGE"
+            )
+        } else {
+            InvoiceDesignerConfig(
+                paperOrientation = "LANDSCAPE",
+                selectedTemplate = "Veda Pharma A4 Landscape"
+            )
+        }
+        InvoiceHtmlGenerator.generateHtml(invoiceWithItems, companyProfile, config)
     }
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Native M3 Bill Sheet, 1 = HTML Print Layout
@@ -130,7 +147,7 @@ fun LandscapeBillPreviewScreen(
                 title = {
                     Column {
                         Text(
-                            text = "A4 Landscape Tax Invoice",
+                            text = if (isPortraitMode) "Vertical A4 Single-Page Bill" else "A4 Landscape Tax Invoice",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
@@ -154,6 +171,21 @@ fun LandscapeBillPreviewScreen(
                     }
                 },
                 actions = {
+                    // Toggle Orientation: Landscape vs Vertical A4 Single-Page
+                    IconButton(
+                        onClick = {
+                            isPortraitMode = !isPortraitMode
+                            selectedTab = 1 // Switch to HTML print view to instantly see the new layout
+                        },
+                        modifier = Modifier.testTag("btn_toggle_orientation")
+                    ) {
+                        Icon(
+                            imageVector = if (isPortraitMode) Icons.Default.StayCurrentLandscape else Icons.Default.StayCurrentPortrait,
+                            contentDescription = if (isPortraitMode) "Switch to Landscape" else "Switch to Vertical A4",
+                            tint = Color.White
+                        )
+                    }
+
                     if (selectedTab == 1 && !isWebViewCrashed) {
                         IconButton(
                             onClick = {
@@ -182,6 +214,25 @@ fun LandscapeBillPreviewScreen(
                             )
                         }
                     }
+                    // WhatsApp Share
+                    IconButton(
+                        onClick = {
+                            InvoicePrintHelper.shareInvoiceToWhatsApp(
+                                context = context,
+                                htmlContent = htmlContent,
+                                invoiceNo = invoiceWithItems.invoice.invoiceNumber,
+                                customerPhone = invoiceWithItems.invoice.partyPhone,
+                                customerName = invoiceWithItems.invoice.partyName
+                            )
+                        },
+                        modifier = Modifier.testTag("whatsapp_share_bill_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Share via WhatsApp",
+                            tint = Color(0xFF25D366)
+                        )
+                    }
                     IconButton(
                         onClick = {
                             InvoicePrintHelper.shareInvoiceHtml(
@@ -204,7 +255,8 @@ fun LandscapeBillPreviewScreen(
                                 InvoicePrintHelper.printInvoice(
                                     activity = activity,
                                     htmlContent = htmlContent,
-                                    jobName = "Invoice_${invoiceWithItems.invoice.invoiceNumber}"
+                                    jobName = "Invoice_${invoiceWithItems.invoice.invoiceNumber}",
+                                    isPortrait = isPortraitMode
                                 )
                             }
                         },
@@ -252,25 +304,27 @@ fun LandscapeBillPreviewScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
-                                InvoicePrintHelper.shareInvoiceHtml(
+                                InvoicePrintHelper.shareInvoiceToWhatsApp(
                                     context = context,
                                     htmlContent = htmlContent,
-                                    invoiceNo = invoiceWithItems.invoice.invoiceNumber
+                                    invoiceNo = invoiceWithItems.invoice.invoiceNumber,
+                                    customerPhone = invoiceWithItems.invoice.partyPhone,
+                                    customerName = invoiceWithItems.invoice.partyName
                                 )
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                containerColor = Color(0xFF25D366),
+                                contentColor = Color.White
                             ),
-                            modifier = Modifier.testTag("bottom_share_button")
+                            modifier = Modifier.testTag("bottom_whatsapp_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Share,
+                                imageVector = Icons.Default.Send,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Share")
+                            Text("WhatsApp")
                         }
 
                         Button(
@@ -279,7 +333,8 @@ fun LandscapeBillPreviewScreen(
                                     InvoicePrintHelper.printInvoice(
                                         activity = activity,
                                         htmlContent = htmlContent,
-                                        jobName = "Invoice_${invoiceWithItems.invoice.invoiceNumber}"
+                                        jobName = "Invoice_${invoiceWithItems.invoice.invoiceNumber}",
+                                        isPortrait = isPortraitMode
                                     )
                                 }
                             },
@@ -294,7 +349,7 @@ fun LandscapeBillPreviewScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Print A4 PDF")
+                            Text(if (isPortraitMode) "Print Vertical A4" else "Print Landscape A4")
                         }
                     }
                 }
@@ -352,7 +407,7 @@ fun LandscapeBillPreviewScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "HTML Print View",
+                                text = if (isPortraitMode) "Vertical A4 Single-Page" else "A4 Landscape Print View",
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 12.sp
                             )
@@ -368,7 +423,7 @@ fun LandscapeBillPreviewScreen(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(6.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFE8F5E9)
+                    containerColor = if (isPortraitMode) Color(0xFFE0F2FE) else Color(0xFFE8F5E9)
                 )
             ) {
                 Row(
@@ -376,16 +431,16 @@ fun LandscapeBillPreviewScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ScreenRotation,
+                        imageVector = if (isPortraitMode) Icons.Default.StayCurrentPortrait else Icons.Default.ScreenRotation,
                         contentDescription = null,
-                        tint = VedaGreenDark,
+                        tint = if (isPortraitMode) Color(0xFF0369A1) else VedaGreenDark,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Pharma Landscape: Rotate device or scroll horizontally to inspect all 14 columns.",
+                        text = if (isPortraitMode) "Vertical A4 Active: Calibrated to fit 100% on 1 physical A4 page." else "Pharma Landscape: Rotate device or scroll horizontally to inspect all 14 columns.",
                         fontSize = 11.sp,
-                        color = VedaGreenDark
+                        color = if (isPortraitMode) Color(0xFF0369A1) else VedaGreenDark
                     )
                 }
             }

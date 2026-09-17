@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Palette
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.ShippingLabelViewModel
 import com.example.ui.fieldsales.FieldSalesMainScreen
 import com.example.ui.fieldsales.LoginScreen
 import com.example.ui.screens.AccountsScreen
@@ -82,6 +84,7 @@ import com.example.ui.screens.LandscapeBillPreviewScreen
 import com.example.ui.screens.PartiesScreen
 import com.example.ui.screens.PurchaseScreen
 import com.example.ui.screens.ReportsScreen
+import com.example.ui.screens.ShippingLabelScreen
 import com.example.ui.screens.VedaAiScreen
 import com.example.ui.theme.PharmaBorder
 import com.example.ui.theme.PharmaTextPrimary
@@ -106,7 +109,8 @@ enum class AppScreen {
     PARTIES,
     COMPANY_SETTINGS,
     FIELD_SALES,
-    LOGIN_CLOUD
+    LOGIN_CLOUD,
+    SHIPPING_LABELS
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,6 +120,7 @@ fun MainApp(
 ) {
     val context = LocalContext.current
     val fieldSalesViewModel: FieldSalesViewModel = viewModel()
+    val shippingLabelViewModel: ShippingLabelViewModel = viewModel()
 
     var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
     var showMoreHubSheet by remember { mutableStateOf(false) }
@@ -248,7 +253,9 @@ fun MainApp(
                             currentScreen = AppScreen.LANDSCAPE_BILL_PREVIEW
                         },
                         onViewAllInvoicesClick = { currentScreen = AppScreen.INVOICE_LIST },
-                        onFieldSalesClick = { currentScreen = AppScreen.FIELD_SALES }
+                        onFieldSalesClick = { currentScreen = AppScreen.FIELD_SALES },
+                        onLoginClick = { currentScreen = AppScreen.LOGIN_CLOUD },
+                        onShippingLabelsClick = { currentScreen = AppScreen.SHIPPING_LABELS }
                     )
                 }
 
@@ -438,6 +445,13 @@ fun MainApp(
                         onLoginSuccess = { currentScreen = AppScreen.DASHBOARD }
                     )
                 }
+
+                AppScreen.SHIPPING_LABELS -> {
+                    ShippingLabelScreen(
+                        viewModel = shippingLabelViewModel,
+                        onBack = { currentScreen = AppScreen.DASHBOARD }
+                    )
+                }
             }
         }
     }
@@ -592,6 +606,18 @@ fun MainApp(
                             onClick = {
                                 showMoreHubSheet = false
                                 currentScreen = AppScreen.FIELD_SALES
+                            }
+                        )
+                    }
+                    item {
+                        HubGridItem(
+                            icon = Icons.Default.LocalShipping,
+                            title = "Shipping Labels",
+                            iconColor = Color(0xFF0D9488),
+                            bgColor = Color(0xFFCCFBF1),
+                            onClick = {
+                                showMoreHubSheet = false
+                                currentScreen = AppScreen.SHIPPING_LABELS
                             }
                         )
                     }

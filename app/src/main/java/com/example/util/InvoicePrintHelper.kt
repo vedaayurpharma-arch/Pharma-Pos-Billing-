@@ -17,7 +17,7 @@ import java.io.FileOutputStream
 
 object InvoicePrintHelper {
 
-    fun printInvoice(activity: Activity, htmlContent: String, jobName: String = "Pharma_Bill") {
+    fun printInvoice(activity: Activity, htmlContent: String, jobName: String = "Pharma_Bill", isPortrait: Boolean = false) {
         activity.runOnUiThread {
             val webView = WebView(activity)
             webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -37,8 +37,9 @@ object InvoicePrintHelper {
                     val printManager = activity.getSystemService(Context.PRINT_SERVICE) as? PrintManager
                     if (printManager != null) {
                         val printAdapter = webView.createPrintDocumentAdapter(jobName)
+                        val mediaSize = if (isPortrait) PrintAttributes.MediaSize.ISO_A4.asPortrait() else PrintAttributes.MediaSize.ISO_A4.asLandscape()
                         val printAttributes = PrintAttributes.Builder()
-                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape())
+                            .setMediaSize(mediaSize)
                             .setResolution(PrintAttributes.Resolution("pharma_pdf", "Pharma Print", 300, 300))
                             .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                             .build()
@@ -59,7 +60,7 @@ object InvoicePrintHelper {
             cachePath.mkdirs()
             val file = File(cachePath, "Invoice_${invoiceNo.replace("/", "_")}.html")
             val stream = FileOutputStream(file)
-            stream.write(htmlContent.toByteArray())
+            stream.write(htmlContent.toByteArray(Charsets.UTF_8))
             stream.close()
 
             val contentUri = FileProvider.getUriForFile(
@@ -72,7 +73,7 @@ object InvoicePrintHelper {
                 type = "text/html"
                 putExtra(Intent.EXTRA_STREAM, contentUri)
                 putExtra(Intent.EXTRA_SUBJECT, "Tax Invoice $invoiceNo")
-                putExtra(Intent.EXTRA_TEXT, "Here is Tax Invoice $invoiceNo (A4 Landscape Pharma Bill)")
+                putExtra(Intent.EXTRA_TEXT, "Here is Tax Invoice $invoiceNo (Veda Ayur Pharma GST Bill)")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(Intent.createChooser(shareIntent, "Share Invoice $invoiceNo"))
@@ -84,6 +85,52 @@ object InvoicePrintHelper {
                 putExtra(Intent.EXTRA_TEXT, htmlContent)
             }
             context.startActivity(Intent.createChooser(textIntent, "Share Invoice $invoiceNo"))
+        }
+    }
+
+    fun shareInvoiceToWhatsApp(context: Context, htmlContent: String, invoiceNo: String, customerPhone: String = "", customerName: String = "") {
+        try {
+            val cachePath = File(context.cacheDir, "invoices")
+            cachePath.mkdirs()
+            val file = File(cachePath, "Invoice_${invoiceNo.replace("/", "_")}.html")
+            val stream = FileOutputStream(file)
+            stream.write(htmlContent.toByteArray(Charsets.UTF_8))
+            stream.close()
+
+            val contentUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+
+            val cleanPhone = customerPhone.replace(Regex("[^0-9]"), "").let {
+                if (it.length == 10) "91$it" else it
+            }
+
+            val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/html"
+                putExtra(Intent.EXTRA_STREAM, contentUri)
+                putExtra(Intent.EXTRA_TEXT, "Hello ${customerName.ifBlank { "Customer" }},\nPlease find your Tax Invoice $invoiceNo from VEDA AYUR PHARMA attached.")
+                if (cleanPhone.isNotEmpty()) {
+                    putExtra("jid", "$cleanPhone@s.whatsapp.net")
+                }
+                setPackage("com.whatsapp")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            try {
+                context.startActivity(whatsappIntent)
+            } catch (e: Exception) {
+                // Try WhatsApp Business
+                whatsappIntent.setPackage("com.whatsapp.w4b")
+                try {
+                    context.startActivity(whatsappIntent)
+                } catch (e2: Exception) {
+                    shareInvoiceHtml(context, htmlContent, invoiceNo)
+                }
+            }
+        } catch (e: Exception) {
+            shareInvoiceHtml(context, htmlContent, invoiceNo)
         }
     }
 }

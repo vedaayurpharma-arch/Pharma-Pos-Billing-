@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -93,7 +95,9 @@ fun DashboardScreen(
     onVedaAiClick: () -> Unit,
     onInvoiceClick: (InvoiceWithItems) -> Unit,
     onViewAllInvoicesClick: () -> Unit,
-    onFieldSalesClick: () -> Unit = {}
+    onFieldSalesClick: () -> Unit = {},
+    onLoginClick: () -> Unit = {},
+    onShippingLabelsClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -133,6 +137,16 @@ fun DashboardScreen(
                 }
             },
             actions = {
+                IconButton(
+                    onClick = onLoginClick,
+                    modifier = Modifier.testTag("btn_top_login_auth")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "User Account & Google Login",
+                        tint = Color.White
+                    )
+                }
                 IconButton(
                     onClick = onVedaAiClick,
                     modifier = Modifier.testTag("btn_veda_ai_top")
@@ -293,6 +307,16 @@ fun DashboardScreen(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    item {
+                        QuickActionButton(
+                            icon = Icons.Default.LocalShipping,
+                            label = "Shipping Labels",
+                            containerColor = Color(0xFF0D9488),
+                            contentColor = Color.White,
+                            onClick = onShippingLabelsClick,
+                            tag = "quick_shipping_labels"
+                        )
+                    }
                     item {
                         QuickActionButton(
                             icon = Icons.Default.Explore,

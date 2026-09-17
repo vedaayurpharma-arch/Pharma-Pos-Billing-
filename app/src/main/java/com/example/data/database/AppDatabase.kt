@@ -13,6 +13,7 @@ import com.example.data.dao.InvoiceDesignerDao
 import com.example.data.dao.PartyDao
 import com.example.data.dao.ProductDao
 import com.example.data.dao.PurchaseDao
+import com.example.data.dao.ShippingLabelDao
 import com.example.data.model.AccountsTransaction
 import com.example.data.model.CompanyProfile
 import com.example.data.model.CustomerVisit
@@ -28,6 +29,7 @@ import com.example.data.model.Product
 import com.example.data.model.ProductAllocation
 import com.example.data.model.PurchaseItem
 import com.example.data.model.PurchaseRecord
+import com.example.data.model.ShippingLabel
 import com.example.data.model.TourExpense
 import com.example.data.model.UserAccount
 import com.example.data.model.UserRole
@@ -53,9 +55,10 @@ import kotlinx.coroutines.launch
         TourExpense::class,
         ProductAllocation::class,
         FieldDocument::class,
-        UserAccount::class
+        UserAccount::class,
+        ShippingLabel::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +70,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun accountsDao(): AccountsDao
     abstract fun invoiceDesignerDao(): InvoiceDesignerDao
     abstract fun fieldSalesDao(): FieldSalesDao
+    abstract fun shippingLabelDao(): ShippingLabelDao
 
     companion object {
         @Volatile

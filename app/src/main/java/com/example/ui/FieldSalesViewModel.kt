@@ -6,6 +6,9 @@ import android.location.Location
 import android.location.LocationManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.auth.GoogleAuthHelper
+import com.example.auth.GoogleAuthResult
+import com.google.firebase.auth.FirebaseUser
 import com.example.data.database.AppDatabase
 import com.example.data.model.CustomerVisit
 import com.example.data.model.FieldCustomer
@@ -78,6 +81,84 @@ class FieldSalesViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _isCloudConnected = MutableStateFlow(true)
     val isCloudConnected: StateFlow<Boolean> = _isCloudConnected.asStateFlow()
+
+    private val authHelper by lazy { GoogleAuthHelper(getApplication()) }
+
+    private val _firebaseUser = MutableStateFlow<FirebaseUser?>(null)
+    val firebaseUser: StateFlow<FirebaseUser?> = _firebaseUser.asStateFlow()
+
+    private val _isAuthenticating = MutableStateFlow(false)
+    val isAuthenticating: StateFlow<Boolean> = _isAuthenticating.asStateFlow()
+
+    private val _authErrorMessage = MutableStateFlow<String?>(null)
+    val authErrorMessage: StateFlow<String?> = _authErrorMessage.asStateFlow()
+
+    fun performGoogleSignIn(
+        activityContext: Context,
+        serverClientId: String? = null,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isAuthenticating.value = true
+            _authErrorMessage.value = null
+            when (val result = authHelper.launchGoogleSignIn(activityContext, serverClientId)) {
+                is GoogleAuthResult.Success -> {
+                    _isAuthenticating.value = false
+                    _firebaseUser.value = result.firebaseUser
+                    val signedInEmail = result.email
+                    val signedInName = result.displayName ?: "Google User"
+
+                    val existing = allUsers.value.find { it.email.equals(signedInEmail, ignoreCase = true) }
+                    val updatedUser = existing?.copy(
+                        name = signedInName.ifBlank { existing.name },
+                        isGoogleAccount = true,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced with Google Cloud"
+                    ) ?: UserAccount(
+                        name = signedInName,
+                        email = signedInEmail,
+                        phone = "+91 94401 23456",
+                        role = UserRole.ADMIN,
+                        stateAssigned = "All States (Executive)",
+                        isGoogleAccount = true,
+                        isCloudSyncEnabled = true,
+                        lastSyncTime = "Synced with Google Cloud"
+                    )
+
+                    _currentUser.value = updatedUser
+                    viewModelScope.launch(Dispatchers.IO) {
+                        repository.addUser(updatedUser)
+                    }
+                    _statusMessage.value = "Google Authentication successful ($signedInEmail)"
+                    onSuccess()
+                }
+                is GoogleAuthResult.Cancelled -> {
+                    _isAuthenticating.value = false
+                    _authErrorMessage.value = "Sign-in cancelled by user"
+                    onFailure("Google Sign-In was cancelled")
+                }
+                is GoogleAuthResult.Error -> {
+                    _isAuthenticating.value = false
+                    _authErrorMessage.value = result.message
+                    onFailure(result.message)
+                }
+            }
+        }
+    }
+
+    fun signOut(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            authHelper.signOut()
+            _firebaseUser.value = null
+            _currentUser.value = _currentUser.value.copy(
+                isGoogleAccount = false,
+                lastSyncTime = "Offline"
+            )
+            _statusMessage.value = "Logged out from Cloud Account"
+            onComplete()
+        }
+    }
 
     fun toggleCloudConnection(enabled: Boolean? = null) {
         _isCloudConnected.value = enabled ?: !_isCloudConnected.value

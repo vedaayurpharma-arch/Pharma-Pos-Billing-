@@ -2,6 +2,8 @@ package com.example.util
 
 import com.example.data.model.CompanyProfile
 import com.example.data.model.ShippingLabel
+import com.example.data.model.ShippingLabelSettings
+import com.example.data.model.ShippingPackageItem
 import java.util.Locale
 
 object ShippingLabelHtmlGenerator {
@@ -12,10 +14,28 @@ object ShippingLabelHtmlGenerator {
      */
     fun generateShippingLabelHtml(
         label: ShippingLabel,
-        company: CompanyProfile
+        company: CompanyProfile,
+        settings: ShippingLabelSettings = ShippingLabelSettings(),
+        packageItems: List<ShippingPackageItem> = emptyList()
     ): String {
-        val barcodeSvg = BarcodeUtil.generateCode128Svg(label.shippingNumber, heightPx = 55, barWidthPx = 1.6, includeText = true)
-        val qrPayload = "VEDA-EXP|SHP:${label.shippingNumber}|INV:${label.invoiceNumber}|COD:${label.codAmount}|PIN:${label.pinCode}|MOB:${label.mobileNumber}"
+        val barcodeSvg = if (settings.showBarcode) {
+            BarcodeUtil.generateCode128Svg(label.shippingNumber, heightPx = 55, barWidthPx = 1.6, includeText = true)
+        } else ""
+
+        // When scanned, the shipping address should be visible in QR code
+        val qrPayload = if (settings.qrIncludeAddressOnly) {
+            """
+SHIP TO / DELIVERY ADDRESS:
+Name: ${label.customerName}${if (label.clinicOrPharmacyName.isNotBlank() && label.clinicOrPharmacyName != label.customerName) "\nOrg: ${label.clinicOrPharmacyName}" else ""}
+Address: ${label.address}
+City: ${label.cityOrDistrict}, State: ${label.state} - PIN: ${label.pinCode}
+Phone: ${label.mobileNumber}${if (label.alternatePhone.isNotBlank()) " / ${label.alternatePhone}" else ""}
+AWB/Ref: ${label.shippingNumber}
+            """.trimIndent()
+        } else {
+            "VEDA-EXP|SHP:${label.shippingNumber}|PIN:${label.pinCode}|MOB:${label.mobileNumber}"
+        }
+
         val qrSvg = BarcodeUtil.generateQrSvg(qrPayload, sizePx = 115)
 
         val isCod = label.isCod || label.codAmount > 0.0
@@ -274,7 +294,8 @@ object ShippingLabelHtmlGenerator {
             </div>
         </div>
 
-        <!-- 4. COD / PREPAID High-Contrast Banner -->
+        <!-- 4. Payment / Dispatch Status Banner -->
+        ${if (!settings.hideProductAndPrice) """
         <div class="payment-banner">
             <div>
                 <div style="font-size:8px; font-weight:bold; text-transform:uppercase;">Payment Terms</div>
@@ -284,6 +305,17 @@ object ShippingLabelHtmlGenerator {
                 ${if (isCod) """<div style="font-size:8px; font-weight:bold; text-transform:uppercase; color:#b71c1c;">Collect From Consignee</div><div class="cod-amount">₹${String.format(Locale.US, "%.2f", label.codAmount)}</div>""" else """<div style="font-size:10px; font-weight:bold; color:#1b5e20;">NO CASH COLLECTION</div>"""}
             </div>
         </div>
+        """ else """
+        <div class="payment-banner" style="background:#f1f5f9; padding: 5px 10px;">
+            <div>
+                <div style="font-size:8px; font-weight:bold; text-transform:uppercase; color:#475569;">Dispatch Mode</div>
+                <div style="font-size:13px; font-weight:900; color:#0f172a; letter-spacing:0.5px;">HEALTHCARE PHARMA PARCEL (CONFIDENTIAL)</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:10px; font-weight:bold; color:#0f172a;">SECURE LOGISTICS</div>
+            </div>
+        </div>
+        """}
 
         <!-- 5. Consignee Delivery Address & QR Code -->
         <div class="shipping-split">
@@ -306,6 +338,32 @@ object ShippingLabelHtmlGenerator {
                 <div style="font-size:7px; color:#666; margin-top:2px;">GST: ${company.gstin}</div>
             </div>
         </div>
+
+        <!-- 5b. Package Item Rows (if configured) -->
+        ${if (packageItems.isNotEmpty()) """
+        <table style="width:100%; border-collapse:collapse; border-bottom:2px solid #000; font-size:9px;">
+            <thead>
+                <tr style="background:#f1f5f9; border-bottom:1px solid #000;">
+                    <th style="padding:3px 4px; text-align:left; border-right:1px solid #ccc;">BOX #</th>
+                    <th style="padding:3px 4px; text-align:left; border-right:1px solid #ccc;">PACKAGE REF</th>
+                    <th style="padding:3px 4px; text-align:center; border-right:1px solid #ccc;">WEIGHT</th>
+                    <th style="padding:3px 4px; text-align:center;">DIMS</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${packageItems.mapIndexed { idx, item ->
+                    """
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:3px 4px; font-weight:bold; border-right:1px solid #ccc;">${item.boxNumber.ifBlank { "Box ${idx + 1}" }}</td>
+                        <td style="padding:3px 4px; border-right:1px solid #ccc;">${item.description}</td>
+                        <td style="padding:3px 4px; text-align:center; border-right:1px solid #ccc;">${item.weightKg} KG</td>
+                        <td style="padding:3px 4px; text-align:center;">${item.dimensions}</td>
+                    </tr>
+                    """
+                }.joinToString("")}
+            </tbody>
+        </table>
+        """ else ""}
 
         <!-- 6. Logistics & Routing Specs -->
         <div class="routing-details">

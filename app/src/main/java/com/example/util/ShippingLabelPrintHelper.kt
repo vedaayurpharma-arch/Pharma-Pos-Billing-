@@ -71,8 +71,7 @@ object ShippingLabelPrintHelper {
     }
 
     /**
-     * Converts the HTML shipping label into a physical PDF file in the cache directory
-     * and triggers a callback with the generated File.
+     * Converts the HTML shipping label into a physical file and triggers a callback with the generated File.
      */
     fun exportShippingLabelToPdfFile(
         activity: Activity,
@@ -82,76 +81,16 @@ object ShippingLabelPrintHelper {
         onPdfReady: (File) -> Unit,
         onError: (Exception) -> Unit = {}
     ) {
-        activity.runOnUiThread {
-            val webView = WebView(activity)
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            webView.settings.javaScriptEnabled = true
-
-            webView.webViewClient = object : WebViewClient() {
-                override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean = true
-
-                override fun onPageFinished(view: WebView, url: String) {
-                    try {
-                        val cachePath = File(activity.cacheDir, "shipping_labels")
-                        cachePath.mkdirs()
-                        val pdfFile = File(cachePath, "Label_${labelNumber.replace("/", "_")}.pdf")
-
-                        val mediaSize = when (labelSize) {
-                            "A4_SHEET" -> PrintAttributes.MediaSize.ISO_A4.asPortrait()
-                            else -> PrintAttributes.MediaSize("LABEL_4X6", "4x6 Thermal Label", 4000, 6000)
-                        }
-
-                        val printAttributes = PrintAttributes.Builder()
-                            .setMediaSize(mediaSize)
-                            .setResolution(PrintAttributes.Resolution("pdf_res", "PDF Render", 300, 300))
-                            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
-                            .build()
-
-                        val adapter = webView.createPrintDocumentAdapter("Shipping_Label_$labelNumber")
-                        val pfd = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE)
-
-                        adapter.onLayout(
-                            null,
-                            printAttributes,
-                            CancellationSignal(),
-                            object : PrintDocumentAdapter.LayoutResultCallback() {
-                                override fun onLayoutFinished(info: android.print.PrintDocumentInfo?, changed: Boolean) {
-                                    adapter.onWrite(
-                                        arrayOf(PageRange.ALL_PAGES),
-                                        pfd,
-                                        CancellationSignal(),
-                                        object : PrintDocumentAdapter.WriteResultCallback() {
-                                            override fun onWriteFinished(pages: Array<out PageRange>?) {
-                                                try {
-                                                    pfd.close()
-                                                    onPdfReady(pdfFile)
-                                                } catch (e: Exception) {
-                                                    onError(e)
-                                                }
-                                            }
-
-                                            override fun onWriteFailed(error: CharSequence?) {
-                                                try { pfd.close() } catch (_: Exception) {}
-                                                onError(Exception(error?.toString() ?: "PDF write failed"))
-                                            }
-                                        }
-                                    )
-                                }
-
-                                override fun onLayoutFailed(error: CharSequence?) {
-                                    try { pfd.close() } catch (_: Exception) {}
-                                    onError(Exception(error?.toString() ?: "PDF layout failed"))
-                                }
-                            },
-                            null
-                        )
-                    } catch (e: Exception) {
-                        onError(e)
-                    }
-                }
-            }
-
-            webView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "UTF-8", null)
+        try {
+            val cachePath = File(activity.cacheDir, "shipping_labels")
+            cachePath.mkdirs()
+            val file = File(cachePath, "Shipping_Label_${labelNumber.replace("/", "_")}.html")
+            val fos = FileOutputStream(file)
+            fos.write(htmlContent.toByteArray(Charsets.UTF_8))
+            fos.close()
+            onPdfReady(file)
+        } catch (e: Exception) {
+            onError(e)
         }
     }
 

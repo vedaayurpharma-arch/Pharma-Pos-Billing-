@@ -7,7 +7,9 @@ import com.example.data.database.AppDatabase
 import com.example.data.model.CompanyProfile
 import com.example.data.model.FieldOrder
 import com.example.data.model.Invoice
+import com.example.data.model.InvoiceWithItems
 import com.example.data.model.ShippingLabel
+import com.example.data.model.ShippingLabelSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,17 +33,25 @@ class ShippingLabelViewModel(application: Application) : AndroidViewModel(applic
     val allShippingLabels: StateFlow<List<ShippingLabel>> = shippingDao.getAllShippingLabels()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allInvoices: StateFlow<List<Invoice>> = invoiceDao.getAllInvoices()
+    val allInvoices: StateFlow<List<InvoiceWithItems>> = invoiceDao.getAllInvoices()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allFieldOrders: StateFlow<List<FieldOrder>> = fieldSalesDao.getAllOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val companyProfile: StateFlow<CompanyProfile?> = companyDao.getProfile()
+    val companyProfile: StateFlow<CompanyProfile?> = companyDao.getCompanyProfile()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
+
+    private val _labelSettings = MutableStateFlow(ShippingLabelSettings())
+    val labelSettings: StateFlow<ShippingLabelSettings> = _labelSettings.asStateFlow()
+
+    fun updateLabelSettings(settings: ShippingLabelSettings) {
+        _labelSettings.value = settings
+        _statusMessage.value = "Shipping label settings updated"
+    }
 
     fun clearStatusMessage() {
         _statusMessage.value = null
@@ -64,10 +74,12 @@ class ShippingLabelViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch(Dispatchers.IO) {
             val shpNumber = generateNextShippingNumber()
             val today = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date())
-            val profile = companyDao.getProfileDirect()
-            val returnAddr = profile?.let {
-                "${it.companyName}, ${it.addressLine1}, ${it.addressLine2}, Ph: ${it.phone}"
-            } ?: "VEDA AYUR PHARMA, Ayurveda Complex, Kurnool - 518002 (A.P.) Ph: +91 94401 23456"
+            val profile = companyDao.getCompanyProfileDirect()
+            val returnAddr = if (profile != null) {
+                "${profile.companyName}, ${profile.addressLine1}, ${profile.addressLine2}, Ph: ${profile.phone}"
+            } else {
+                "VEDA AYUR PHARMA, Ayurveda Complex, Kurnool - 518002 (A.P.) Ph: +91 94401 23456"
+            }
 
             val label = ShippingLabel(
                 shippingNumber = shpNumber,
@@ -102,10 +114,12 @@ class ShippingLabelViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch(Dispatchers.IO) {
             val shpNumber = generateNextShippingNumber()
             val today = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date())
-            val profile = companyDao.getProfileDirect()
-            val returnAddr = profile?.let {
-                "${it.companyName}, ${it.addressLine1}, ${it.addressLine2}, Ph: ${it.phone}"
-            } ?: "VEDA AYUR PHARMA, Ayurveda Complex, Kurnool - 518002 (A.P.) Ph: +91 94401 23456"
+            val profile = companyDao.getCompanyProfileDirect()
+            val returnAddr = if (profile != null) {
+                "${profile.companyName}, ${profile.addressLine1}, ${profile.addressLine2}, Ph: ${profile.phone}"
+            } else {
+                "VEDA AYUR PHARMA, Ayurveda Complex, Kurnool - 518002 (A.P.) Ph: +91 94401 23456"
+            }
 
             val isCod = order.paymentStatus.contains("PENDING", ignoreCase = true) || order.paymentStatus.contains("COD", ignoreCase = true)
 

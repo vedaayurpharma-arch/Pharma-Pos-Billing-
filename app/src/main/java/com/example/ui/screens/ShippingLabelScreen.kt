@@ -120,9 +120,12 @@ fun ShippingLabelScreen(
         dlNo = "20B/21B-AP/KNL/2023"
     )
 
+    val labelSettings by viewModel.labelSettings.collectAsState()
+
     var selectedTab by remember { mutableStateOf(0) } // 0: All Labels, 1: Quick Generate from Invoices, 2: Preview / Editor
     var activeLabelForPreview by remember { mutableStateOf<ShippingLabel?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var labelToEdit by remember { mutableStateOf<ShippingLabel?>(null) }
 
     LaunchedEffect(statusMsg) {
@@ -162,10 +165,21 @@ fun ShippingLabelScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showSettingsDialog = true },
+                        modifier = Modifier.testTag("btn_shipping_settings")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Format & QR Settings",
+                            tint = Color.White
+                        )
+                    }
+
                     if (activeLabelForPreview != null) {
                         val activeLabel = activeLabelForPreview!!
-                        val html = remember(activeLabel, company) {
-                            ShippingLabelHtmlGenerator.generateShippingLabelHtml(activeLabel, company)
+                        val html = remember(activeLabel, company, labelSettings) {
+                            ShippingLabelHtmlGenerator.generateShippingLabelHtml(activeLabel, company, settings = labelSettings)
                         }
 
                         // WhatsApp Share Button
@@ -495,8 +509,8 @@ fun ShippingLabelScreen(
                     // Live Shipping Label Preview
                     if (activeLabelForPreview != null) {
                         val activeLabel = activeLabelForPreview!!
-                        val html = remember(activeLabel, company) {
-                            ShippingLabelHtmlGenerator.generateShippingLabelHtml(activeLabel, company)
+                        val html = remember(activeLabel, company, labelSettings) {
+                            ShippingLabelHtmlGenerator.generateShippingLabelHtml(activeLabel, company, settings = labelSettings)
                         }
 
                         Column(modifier = Modifier.fillMaxSize()) {
@@ -787,6 +801,210 @@ fun ShippingLabelScreen(
             }
         )
     }
+
+    if (showSettingsDialog) {
+        ShippingLabelSettingsDialog(
+            settings = labelSettings,
+            onDismiss = { showSettingsDialog = false },
+            onSave = { updated ->
+                viewModel.updateLabelSettings(updated)
+                showSettingsDialog = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShippingLabelSettingsDialog(
+    settings: ShippingLabelSettings,
+    onDismiss: () -> Unit,
+    onSave: (ShippingLabelSettings) -> Unit
+) {
+    var qrIncludeAddressOnly by remember { mutableStateOf(settings.qrIncludeAddressOnly) }
+    var hideProductAndPrice by remember { mutableStateOf(settings.hideProductAndPrice) }
+    var showReturnAddress by remember { mutableStateOf(settings.showReturnAddress) }
+    var showHandlingInstructions by remember { mutableStateOf(settings.showHandlingInstructions) }
+    var showCourierPartner by remember { mutableStateOf(settings.showCourierPartner) }
+    var showBarcode by remember { mutableStateOf(settings.showBarcode) }
+    var defaultLabelSize by remember { mutableStateOf(settings.defaultLabelSize) }
+    var defaultCourier by remember { mutableStateOf(settings.defaultCourier) }
+    var customFooterNote by remember { mutableStateOf(settings.customFooterNote) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Settings, contentDescription = null, tint = VedaGreenDark)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Label & QR Code Settings", fontWeight = FontWeight.Bold, color = VedaGreenDark, fontSize = 18.sp)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "QR Code & Privacy Configuration",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = PharmaTextPrimary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Address in QR Code", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(
+                            "When scanned, displays full consignee shipping address",
+                            fontSize = 11.sp,
+                            color = PharmaTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = qrIncludeAddressOnly,
+                        onCheckedChange = { qrIncludeAddressOnly = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = VedaGreen)
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Hide Product & Price", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(
+                            "Strict privacy: hides formulations & rates on outer box",
+                            fontSize = 11.sp,
+                            color = PharmaTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = hideProductAndPrice,
+                        onCheckedChange = { hideProductAndPrice = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = VedaGreen)
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Code128 Barcode", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(
+                            "Render linear AWB barcode at top of label",
+                            fontSize = 11.sp,
+                            color = PharmaTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = showBarcode,
+                        onCheckedChange = { showBarcode = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = VedaGreen)
+                    )
+                }
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Return Address", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(
+                            "Include Veda Ayur Pharma return instructions",
+                            fontSize = 11.sp,
+                            color = PharmaTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = showReturnAddress,
+                        onCheckedChange = { showReturnAddress = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = VedaGreen)
+                    )
+                }
+
+                HorizontalDivider()
+
+                Text("Default Sticker Size", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PharmaTextPrimary)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = defaultLabelSize == "4x6_INCH",
+                        onClick = { defaultLabelSize = "4x6_INCH" },
+                        label = { Text("4x6\" Sticker") }
+                    )
+                    FilterChip(
+                        selected = defaultLabelSize == "100x150_MM",
+                        onClick = { defaultLabelSize = "100x150_MM" },
+                        label = { Text("100x150mm") }
+                    )
+                    FilterChip(
+                        selected = defaultLabelSize == "A4_SHEET",
+                        onClick = { defaultLabelSize = "A4_SHEET" },
+                        label = { Text("A4 Sheet") }
+                    )
+                }
+
+                OutlinedTextField(
+                    value = defaultCourier,
+                    onValueChange = { defaultCourier = it },
+                    label = { Text("Default Courier / Cargo Partner") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = customFooterNote,
+                    onValueChange = { customFooterNote = it },
+                    label = { Text("Handling & Safety Instruction") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        settings.copy(
+                            qrIncludeAddressOnly = qrIncludeAddressOnly,
+                            hideProductAndPrice = hideProductAndPrice,
+                            showBarcode = showBarcode,
+                            showReturnAddress = showReturnAddress,
+                            showHandlingInstructions = showHandlingInstructions,
+                            showCourierPartner = showCourierPartner,
+                            defaultLabelSize = defaultLabelSize,
+                            defaultCourier = defaultCourier,
+                            customFooterNote = customFooterNote
+                        )
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = VedaGreen)
+            ) {
+                Text("Save Settings")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
